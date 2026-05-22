@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fill Rate — Visão Gerencial</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+/* ── Tokens ──────────────────────────────────────────────────── */
+:root {
+  --bg:       #0c0f18;
+  --s1:       #111520;
+  --s2:       #161c2d;
+  --s3:       #1d2438;
+  --border:   rgba(255,255,255,0.07);
+  --border2:  rgba(255,255,255,0.13);
+  --text:     #dde2ef;
+  --muted:    #5e6b84;
+  --muted2:   #8899b4;
+
+  --ce:    #f97316;
+  --op:    #f59e0b;
+  --pcp:   #a78bfa;
+  --ok:    #34d399;
+  --ti:    #60a5fa;
+  --rec:   #fb7185;
+
+  --red:   #ef4444;
+  --green: #22c55e;
+  --yel:   #eab308;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 13px; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  padding: 28px 24px 60px;
+  background-image:
+    radial-gradient(ellipse 70% 35% at 15% 0%,  rgba(167,139,250,0.07) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 30% at 85% 90%, rgba(249,115,22,0.06) 0%, transparent 60%);
+}
+
+/* ── Header ──────────────────────────────────────────────────── */
+.header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 28px;
+}
+.header h1 {
+  font-family: 'Syne', sans-serif;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -.4px;
+  line-height: 1.1;
+}
+.header h1 em {
+  font-style: normal;
+
+  background: linear-gradient(100deg, #f97316 20%, #a78bfa 80%);
+
+  background-clip: text;
+  -webkit-background-clip: text;
+
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+.header-meta {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 3px;
+}
+.header-actions { display: flex; gap: 10px; align-items: center; }
+
+.btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500;
+  padding: 8px 16px; border-radius: 8px; cursor: pointer; transition: all .2s;
+  background: var(--s2); border: 1px solid var(--border2); color: var(--text);
+}
+.btn:hover { border-color: #a78bfa; color: #a78bfa; }
+.btn-primary { background: #a78bfa22; border-color: #a78bfa; color: #a78bfa; }
+.btn-primary:hover { background: #a78bfa33; }
+#file-input { display: none; }
+
+.tag {
+  font-family: 'DM Mono', monospace; font-size: 10px;
+  padding: 5px 11px; border-radius: 5px;
+  background: var(--s2); border: 1px solid var(--border);
+  color: var(--muted2);
+}
+
+/* ── Section label ───────────────────────────────────────────── */
+.sec {
+  font-family: 'DM Mono', monospace; font-size: 9px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: 1.8px; color: var(--muted);
+  display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+}
+.sec::after { content:''; flex:1; height:1px; background: var(--border); }
+
+/* ── KPI strip ───────────────────────────────────────────────── */
+.kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin-bottom: 24px;
+}
+.kpi {
+  background: var(--s1); border: 1px solid var(--border);
+  border-radius: 11px; padding: 16px 18px;
+  position: relative; overflow: hidden;
+}
+.kpi::before {
+  content:''; position: absolute; top:0; left:0; right:0; height:2px;
+  background: var(--kc, #4f8ef7);
+}
+.kpi-label { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 6px; }
+.kpi-val { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 700; color: var(--kc, var(--text)); line-height: 1; }
+.kpi-sub  { font-size: 10px; color: var(--muted2); margin-top: 4px; font-family:'DM Mono',monospace; }
+
+/* ── Responsible panels ──────────────────────────────────────── */
+.resp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.resp-card {
+  background: var(--s1); border: 1px solid var(--border);
+  border-radius: 12px; overflow: hidden;
+}
+.resp-card-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.resp-badge {
+  font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 700;
+  letter-spacing: .4px; padding: 4px 12px; border-radius: 5px;
+}
+.resp-total {
+  font-family: 'DM Mono', monospace; font-size: 18px; font-weight: 500;
+  color: var(--rc, var(--text));
+}
+.resp-body { padding: 10px 0; }
+.resp-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 16px;
+  transition: background .15s;
+}
+.resp-row:hover { background: rgba(255,255,255,0.03); }
+.resp-row-name {
+  flex: 1; font-size: 11px; color: var(--muted2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.resp-bar-bg { width: 70px; height: 3px; background: rgba(255,255,255,0.07); border-radius: 99px; flex-shrink:0; }
+.resp-bar-fill { height:100%; border-radius: 99px; background: var(--rc, #4f8ef7); opacity:.8; }
+.resp-row-val { font-family: 'DM Mono', monospace; font-size: 11px; min-width:44px; text-align:right; }
+
+/* ── Setor donuts ────────────────────────────────────────────── */
+.setor-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.setor-card {
+  background: var(--s1); border: 1px solid var(--border);
+  border-radius: 12px; padding: 18px 16px;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+}
+.setor-name { font-family:'DM Mono',monospace; font-size:10px; text-transform:uppercase; letter-spacing:1.2px; color:var(--muted); }
+.donut-wrap { position:relative; width:88px; height:88px; }
+.donut-wrap svg { transform: rotate(-90deg); }
+.donut-center {
+  position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+  text-align:center; line-height:1;
+}
+.donut-pct { font-family:'Syne',sans-serif; font-size:16px; font-weight:700; }
+.donut-lbl { font-family:'DM Mono',monospace; font-size:9px; color:var(--muted); margin-top:2px; }
+.setor-meta { font-size:10px; color:var(--muted2); text-align:center; font-family:'DM Mono',monospace; }
+
+/* ── Main table ──────────────────────────────────────────────── */
+.tbl-wrap {
+  background: var(--s1); border: 1px solid var(--border);
+  border-radius: 13px; overflow: auto; margin-bottom: 24px;
+}
+table { width:100%; border-collapse:collapse; font-size:11.5px; }
+
+thead tr { background: var(--s2); }
+th {
+  padding: 10px 13px; font-family:'DM Mono',monospace; font-size:9.5px;
+  font-weight:500; text-transform:uppercase; letter-spacing:.7px;
+  color: var(--muted); border-bottom: 1px solid var(--border);
+  text-align:right; white-space:nowrap;
+}
+th:nth-child(1), th:nth-child(2) { text-align:left; }
+
+td {
+  padding: 9px 13px; border-bottom: 1px solid var(--border);
+  font-family:'DM Mono',monospace; font-size:11px;
+  text-align:right; color: #b0bbd0; white-space:nowrap;
+}
+td:nth-child(1) { font-family:'DM Sans',sans-serif; font-size:10.5px; }
+td:nth-child(2) { font-family:'DM Sans',sans-serif; font-size:11.5px; font-weight:500; text-align:left; }
+
+tbody tr:nth-child(even) { background: rgba(255,255,255,0.018); }
+tbody tr:hover { background: rgba(167,139,250,0.04); }
+
+.tr-total td {
+  background: #dc2626 !important;
+  color: #fff !important; font-weight:700;
+  font-family:'Syne',sans-serif; font-size:12.5px; border:none;
+}
+.tr-proj td  { background: var(--s2) !important; color: var(--muted2) !important; font-size:10.5px; border:none; }
+.tr-fr td    { background: var(--s2) !important; border:none; }
+
+.resp-cell { display:inline-flex; align-items:center; justify-content:center; }
+.badge {
+  font-family:'Syne',sans-serif; font-size:9.5px; font-weight:700;
+  padding:3px 10px; border-radius:4px; min-width:40px; text-align:center;
+}
+.b-CE  { background:rgba(249,115,22,.15); color:var(--ce); border:1px solid rgba(249,115,22,.3); }
+.b-OP  { background:rgba(245,158,11,.12); color:var(--op); border:1px solid rgba(245,158,11,.3); }
+.b-PCP { background:rgba(167,139,250,.12);color:var(--pcp);border:1px solid rgba(167,139,250,.3);}
+.b-OK  { background:rgba(52,211,153,.1);  color:var(--ok); border:1px solid rgba(52,211,153,.25);}
+
+/* FR bar */
+.fr-wrap { display:flex; align-items:center; gap:6px; justify-content:flex-end; }
+.fr-bg   { width:60px; height:4px; background:rgba(255,255,255,0.08); border-radius:99px; overflow:hidden; flex-shrink:0; }
+.fr-fill { height:100%; border-radius:99px; }
+.fr-txt  { font-size:11px; font-weight:700; min-width:42px; text-align:right; }
+
+.zero { color: var(--muted) !important; }
+
+/* ── Empty state ─────────────────────────────────────────────── */
+.empty {
+  display:flex; flex-direction:column; align-items:center;
+  justify-content:center; padding:70px 20px; gap:12px;
+  color:var(--muted); text-align:center;
+}
+.empty svg { opacity:.25; }
+.empty h2 { font-family:'Syne',sans-serif; font-size:17px; opacity:.5; }
+.empty p  { font-size:12px; max-width:300px; line-height:1.7; }
+.empty code { background:var(--s2); padding:2px 6px; border-radius:4px; font-family:'DM Mono',monospace; }
+
+@media(max-width:700px){
+  body { padding:16px 12px 40px; }
+  .header { flex-direction:column; align-items:flex-start; }
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div>
+    <h1>Fill Rate — <em>Visão Gerencial</em></h1>
+    <div class="header-meta" id="header-meta">Aguardando arquivo…</div>
+  </div>
+  <div class="header-actions">
+    <span class="tag" id="date-tag">—</span>
+    <label class="btn btn-primary" for="file-input">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+      </svg>
+      Carregar CSV
+    </label>
+    <input type="file" id="file-input" accept=".csv">
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard">
+  <div class="empty">
+    <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+      <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>
+    </svg>
+    <h2>Nenhum dado carregado</h2>
+    <p>Clique em <strong>Carregar CSV</strong> e selecione o arquivo gerado pelo script <code>projecaofill.py</code>.</p>
+  </div>
+</div>
+
+<script>
+// ── Config ─────────────────────────────────────────────────────
+const SETORES_ORDER = ["Ilhas","Encabidados","Ruas","Restrita"];
+
+const RESP_CFG = {
+  "C.E":          { label:"C.E",  cls:"b-CE",  color:"#f97316" },
+  "O.P":          { label:"O.P",  cls:"b-OP",  color:"#f59e0b" },
+  "PCP":          { label:"PCP",  cls:"b-PCP", color:"#a78bfa" },
+  "OK":           { label:"OK",   cls:"b-OK",  color:"#34d399" },
+  "FLOW THROUNG": { label:"FT",   cls:"b-OK",  color:"#22d3ee" },
+};
+
+const ERROS_ORDER = [
+  "ITEM SEM ESTOQUE DISPONIVEL",
+  "ENDERECO FORA DE SERVICO",
+  "MARCADO MANUALMENTE",
+  "DEVOL-ESTQ",
+  "UNLOCATEDLOC",
+  "RTV",
+  "ARMAZENAR",
+  "REARMAZENAR - CLASSE INCORRETA",
+  "ITEM SEM LOCAL DE SEPARACAO",
+];
+
+const MAP_ERRO_RESP = {
+  "ITEM SEM ESTOQUE DISPONIVEL":    "C.E",
+  "MARCADO MANUALMENTE":            "C.E",
+  "ENDERECO FORA DE SERVICO":       "C.E",
+  "CASEPACK":                       "C.E",
+  "ITEM SEM ESTOQUE PARCIAL":       "C.E",
+  "ENDERECO BLOQUEADO":             "C.E",
+  "IN-TRANSIT - CE":                "C.E",
+  "CLASSE INCORRETA":               "C.E",
+  "FLOW THROUNG":                   "FLOW THROUNG",
+  "RTV":                            "O.P",
+  "IN-TRANSIT":                     "O.P",
+  "UNLOCATEDLOC":                   "O.P",
+  "ARMAZENAGEM":                    "O.P",
+  "ARMAZENAR":                      "O.P",
+  "DEVOL-ESTQ":                     "O.P",
+  "ESTOQUE INELEGIVEL":             "O.P",
+  "REARMAZENAR - CLASSE INCORRETA": "O.P",
+  "ENDEREÇAMENTO INCORRETO":        "PCP",
+  "ITEM SEM LOCAL DE SEPARACAO":    "PCP",
+  "RECEBIMENTO":                    "REC",
+  "ERRO SISTEMICO":                 "T.I",
+  "RESOLVIDO":                      "OK",
+  "ENDEREÇADO":                     "OK",
+  "Ok":                             "OK",
+};
+
+// ── Helpers ────────────────────────────────────────────────────
+const fmt  = v => Math.round(v).toLocaleString("pt-BR");
+const pct  = (a,b) => b > 0 ? (a/b*100).toFixed(2)+"%" : "0,00%";
+const frC  = v => v >= 90 ? "#34d399" : v >= 70 ? "#f59e0b" : "#ef4444";
+
+function parseCSV(text) {
+  const sep = (text.match(/;/) ? ';' : ',');
+  const lines = text.trim().split(/\r?\n/);
+  const headers = lines[0].split(sep).map(h => h.replace(/^\uFEFF/,'').trim().replace(/^"|"$/g,''));
+  return lines.slice(1).filter(Boolean).map(line => {
+    const vals = line.split(sep).map(v => v.trim().replace(/^"|"$/g,''));
+    return Object.fromEntries(headers.map((h,i) => [h, vals[i]??'']));
+  });
+}
+
+function mapSetor(local) {
+  if (local === 'Encabidados') return 'Encabidados';
+  if (local.startsWith('1E')) return 'Ilhas';
+  if (/^1[LCSAJGYU]/.test(local)) return 'Ruas';
+  if (local.startsWith('1K')) return 'Encabidados';
+  return local;
+}
+
+// ── Process ────────────────────────────────────────────────────
+function processData(rows) {
+  // pivot[erro][setor] = count
+  const pivot = {};
+  const setoresFound = new Set();
+  const totalSetor = {};
+  const erroSetor  = {};
+
+  rows.forEach(r => {
+    const erro  = (r['ERRO_REAL'] || 'Ok').trim();
+    const setor = mapSetor(r['LOCAL']);
+    setoresFound.add(setor);
+    totalSetor[setor] = (totalSetor[setor]||0) + 1;
+
+    if (erro !== 'Ok') {
+      if (!pivot[erro]) pivot[erro] = {};
+      pivot[erro][setor] = (pivot[erro][setor]||0) + 1;
+      erroSetor[setor] = (erroSetor[setor]||0) + 1;
+    }
+  });
+
+  const setores = SETORES_ORDER.filter(s => setoresFound.has(s));
+  [...setoresFound].forEach(s => { if (!setores.includes(s)) setores.push(s); });
+
+  return { pivot, setores, totalSetor, erroSetor, rows };
+}
+
+// ── Render donuts ──────────────────────────────────────────────
+function renderDonuts(setores, totalSetor, erroSetor) {
+  const r = 36, circ = 2*Math.PI*r;
+  return setores.map(s => {
+    const tot = totalSetor[s]||0;
+    const err = erroSetor[s]||0;
+    const fr  = tot > 0 ? ((tot-err)/tot*100) : 100;
+    const c   = frC(fr);
+    const dash = (fr/100)*circ;
+    return `<div class="setor-card">
+      <div class="setor-name">${s}</div>
+      <div class="donut-wrap">
+        <svg width="88" height="88" viewBox="0 0 88 88">
+          <circle cx="44" cy="44" r="${r}" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="7"/>
+          <circle cx="44" cy="44" r="${r}" fill="none" stroke="${c}" stroke-width="7"
+            stroke-dasharray="${dash.toFixed(1)} ${circ.toFixed(1)}" stroke-linecap="round"/>
+        </svg>
+        <div class="donut-center">
+          <div class="donut-pct" style="color:${c}">${fr.toFixed(1)}%</div>
+          <div class="donut-lbl">FR</div>
+        </div>
+      </div>
+      <div class="setor-meta">${fmt(err)} erros / ${fmt(tot)} total</div>
+    </div>`;
+  }).join('');
+}
+
+// ── Render responsible cards ───────────────────────────────────
+function renderRespCards(pivot, setores) {
+  const respOrder = ["C.E","O.P","PCP","FLOW THROUNG"];
+  const byResp = {};
+
+  Object.entries(pivot).forEach(([erro, sm]) => {
+    const resp = MAP_ERRO_RESP[erro] || "O.P";
+    if (!byResp[resp]) byResp[resp] = {};
+    byResp[resp][erro] = sm;
+  });
+
+  return respOrder.filter(r => byResp[r]).map(resp => {
+    const cfg   = RESP_CFG[resp] || RESP_CFG["O.P"];
+    const erros = Object.keys(byResp[resp]);
+    const totResp = erros.reduce((a,e) => a + setores.reduce((b,s) => b+(pivot[e]?.[s]||0),0), 0);
+    const maxE  = Math.max(...erros.map(e => setores.reduce((b,s) => b+(pivot[e]?.[s]||0),0)), 1);
+
+    const rows2 = erros.map(e => {
+      const v = setores.reduce((b,s) => b+(pivot[e]?.[s]||0),0);
+      const w = Math.round(v/maxE*100);
+      return `<div class="resp-row">
+        <span class="resp-row-name" title="${e}">${e}</span>
+        <div class="resp-bar-bg" style="--rc:${cfg.color}">
+          <div class="resp-bar-fill" style="width:${w}%;background:${cfg.color}"></div>
+        </div>
+        <span class="resp-row-val" style="color:${cfg.color}">${fmt(v)}</span>
+      </div>`;
+    }).join('');
+
+    return `<div class="resp-card" style="--rc:${cfg.color}">
+      <div class="resp-card-head">
+        <span class="badge resp-badge ${cfg.cls}">${cfg.label}</span>
+        <span class="resp-total">${fmt(totResp)}</span>
+      </div>
+      <div class="resp-body">${rows2}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── Render main table ──────────────────────────────────────────
+function renderTable(pivot, setores, totalSetor, erroSetor) {
+  const allErros  = [...ERROS_ORDER.filter(e => pivot[e]), ...Object.keys(pivot).filter(e => !ERROS_ORDER.includes(e))];
+  const totalErroGlobal = allErros.reduce((a,e) => a + setores.reduce((b,s) => b+(pivot[e]?.[s]||0),0),0);
+  const totalGlobal = setores.reduce((a,s) => a+(totalSetor[s]||0),0);
+
+  // Totals per setor (errors only)
+  const totErrSetor = {};
+  setores.forEach(s => totErrSetor[s] = allErros.reduce((a,e)=>a+(pivot[e]?.[s]||0),0));
+
+  let prevResp = null;
+  let bodyHTML = '';
+
+  allErros.forEach(erro => {
+    const resp = MAP_ERRO_RESP[erro] || "O.P";
+    const cfg  = RESP_CFG[resp] || RESP_CFG["O.P"];
+    const rowTot = setores.reduce((a,s) => a+(pivot[erro]?.[s]||0),0);
+    const partPct = totalErroGlobal > 0 ? (rowTot/totalErroGlobal*100).toFixed(2)+"%" : "0,00%";
+
+    const respTd = prevResp !== resp
+      ? `<td><span class="badge ${cfg.cls}">${cfg.label}</span></td>`
+      : `<td></td>`;
+    prevResp = resp;
+
+    const cells = setores.map(s => {
+      const v = pivot[erro]?.[s]||0;
+      return `<td class="${v===0?'zero':''}">${v===0?'—':fmt(v)}</td>`;
+    }).join('');
+
+    bodyHTML += `<tr>
+      ${respTd}
+      <td>${erro}</td>
+      ${cells}
+      <td style="color:#ef4444;font-weight:700">${fmt(rowTot)}</td>
+      <td>${partPct}</td>
+    </tr>`;
+  });
+
+  // Total erros row
+  const totalErrCells = setores.map(s => `<td>${fmt(totErrSetor[s]||0)}</td>`).join('');
+  bodyHTML += `<tr class="tr-total">
+    <td colspan="2">Total Erros</td>
+    ${totalErrCells}
+    <td>${fmt(totalErroGlobal)}</td>
+    <td>100,00%</td>
+  </tr>`;
+
+  // Proj prog row
+  const projCells = setores.map(s => `<td>${fmt(totalSetor[s]||0)}</td>`).join('');
+  bodyHTML += `<tr class="tr-proj">
+    <td colspan="2">Total proj. prog.</td>
+    ${projCells}
+    <td>${fmt(totalGlobal)}</td>
+    <td></td>
+  </tr>`;
+
+  // Fillrate row
+  const frCells = setores.map(s => {
+    const tot = totalSetor[s]||0;
+    const err = totErrSetor[s]||0;
+    const fr  = tot > 0 ? ((tot-err)/tot*100) : 100;
+    const c   = frC(fr);
+    return `<td>
+      <div class="fr-wrap">
+        <div class="fr-bg"><div class="fr-fill" style="width:${fr.toFixed(1)}%;background:${c}"></div></div>
+        <span class="fr-txt" style="color:${c}">${fr.toFixed(2)}%</span>
+      </div>
+    </td>`;
+  }).join('');
+
+  const frG = totalGlobal > 0 ? ((totalGlobal-totalErroGlobal)/totalGlobal*100) : 100;
+  bodyHTML += `<tr class="tr-fr">
+    <td colspan="2" style="font-weight:700;color:var(--text)">Fillrate %</td>
+    ${frCells}
+    <td>
+      <div class="fr-wrap">
+        <div class="fr-bg"><div class="fr-fill" style="width:${frG.toFixed(1)}%;background:${frC(frG)}"></div></div>
+        <span class="fr-txt" style="color:${frC(frG)}">${frG.toFixed(2)}%</span>
+      </div>
+    </td>
+    <td></td>
+  </tr>`;
+
+  const thSetores = setores.map(s => `<th>${s}</th>`).join('');
+
+  return `<div class="tbl-wrap">
+    <table>
+      <thead><tr>
+        <th>Resp.</th><th>Erro</th>
+        ${thSetores}
+        <th>Total</th><th>% Part.</th>
+      </tr></thead>
+      <tbody>${bodyHTML}</tbody>
+    </table>
+  </div>`;
+}
+
+// ── Main render ────────────────────────────────────────────────
+function render(rows) {
+  const { pivot, setores, totalSetor, erroSetor } = processData(rows);
+
+  const totalGlobal = setores.reduce((a,s) => a+(totalSetor[s]||0),0);
+  const totalErros  = setores.reduce((a,s) => a+(erroSetor[s]||0),0);
+  const frGlobal    = totalGlobal > 0 ? ((totalGlobal-totalErros)/totalGlobal*100) : 100;
+
+  // KPIs
+  const kpis = [
+    { label:"Total projetado", val:fmt(totalGlobal), sub:"linhas de pedido", c:"#a78bfa" },
+    { label:"Total de erros",  val:fmt(totalErros),  sub:pct(totalErros,totalGlobal)+" do total", c:"#ef4444" },
+    { label:"Fill Rate Global",val:frGlobal.toFixed(2)+"%", sub:fmt(totalGlobal-totalErros)+" itens OK", c:frC(frGlobal) },
+    ...setores.map(s => {
+      const tot = totalSetor[s]||0, err = erroSetor[s]||0;
+      const fr  = tot>0 ? ((tot-err)/tot*100) : 100;
+      return { label:"FR "+s, val:fr.toFixed(2)+"%", sub:fmt(err)+" erros", c:frC(fr) };
+    })
+  ];
+
+  const kpiHTML = kpis.map(k => `<div class="kpi" style="--kc:${k.c}">
+    <div class="kpi-label">${k.label}</div>
+    <div class="kpi-val">${k.val}</div>
+    <div class="kpi-sub">${k.sub}</div>
+  </div>`).join('');
+
+  document.getElementById('dashboard').innerHTML = `
+    <div class="kpi-strip">${kpiHTML}</div>
+
+    <div class="sec">Fill Rate por setor</div>
+    <div class="setor-grid">${renderDonuts(setores, totalSetor, erroSetor)}</div>
+
+    <div class="sec">Análise por responsável</div>
+    <div class="resp-grid">${renderRespCards(pivot, setores)}</div>
+
+    <div class="sec">Tabela consolidada</div>
+    ${renderTable(pivot, setores, totalSetor, erroSetor)}
+  `;
+
+  document.getElementById('header-meta').textContent =
+    `${fmt(totalGlobal)} linhas · ${fmt(totalErros)} erros · FR ${frGlobal.toFixed(2)}%`;
+  document.getElementById('date-tag').textContent =
+    new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'numeric'});
+}
+
+// ── File input ─────────────────────────────────────────────────
+document.getElementById('file-input').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      render(parseCSV(ev.target.result));
+    } catch(err) {
+      alert('Erro ao processar o CSV:\n' + err.message);
+    }
+  };
+  reader.readAsText(file, 'UTF-8');
+});
+</script>
+</body>
+</html>
