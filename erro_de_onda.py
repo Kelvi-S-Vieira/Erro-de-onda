@@ -118,28 +118,31 @@ MAP_CLASSE_SETOR = {
     "CLSETEB": "G",  "CLSETYY": "YY",
 }
 
-# Área responsável vem diretamente da coluna 'área responsavel ' do IND. PROG.
-# (vazio) = SEM ESTOQUE sem área preenchida na base
+# Mapeamento alinhado com os valores reais da base IND. PROG. (coluna AREA_RESPONSAVEL)
 MAP_ERRO_RESPONSAVEL = {
-    "ITEM SEM ESTOQUE DISPONIVEL":    "C.E",
-    "MARCADO MANUALMENTE":            "C.E",
-    "ENDERECO BLOQUEADO":             "C.E",
-    "CASEPACK":                       "C.E",
-    "ITEM SEM ESTOQUE PARCIAL":       "C.E",
-    "ENDERECO FORA DE SERVICO":       "C.E",
-    "IN-TRANSIT - CE":                "C.E",
-    "CLASSE INCORRETA":               "C.E",
-    "FLOW THROUNG":                   "FLOW THROUNG",
-    "RTV":                            "O.P",
-    "IN-TRANSIT":                     "O.P",
-    "UNLOCATEDLOC":                   "O.P",
-    "ARMAZENAGEM":                    "O.P",
-    "ARMAZENAR":                      "O.P",
-    "DEVOL-ESTQ":                     "O.P",
-    "ESTOQUE INELEGIVEL":             "O.P",
-    "ENDEREÇAMENTO INCORRETO":        "PCP",
+    # ERRO_REAL → Área (valores usados no dashboard e no BASE FILL RATE)
+    "ITEM SEM ESTOQUE DISPONIVEL":    "(vazio)",   # SEM ESTOQUE não tem área na base
+    "ERRO DE ONDA":                   "(vazio)",
+    "ENDERECO FORA DE SERVICO":       "CE",
+    "MARCADO MANUALMENTE":            "CE . OP",
+    "RTV":                            "OP",
+    "UNLOCATEDLOC":                   "OP",
+    "DEVOL-ESTQ":                     "OP",
     "ITEM SEM LOCAL DE SEPARACAO":    "PCP",
-    "REARMAZENAR - CLASSE INCORRETA": "O.P",
+    "REARMAZENAR - CLASSE INCORRETA": "OP",
+    "ARMAZENAR":                      "OP",
+    "EMITIDA":                        "(vazio)",
+    # Legados / fallback
+    "ENDERECO BLOQUEADO":             "CE",
+    "CASEPACK":                       "CE",
+    "ITEM SEM ESTOQUE PARCIAL":       "CE",
+    "IN-TRANSIT - CE":                "CE . OP",
+    "CLASSE INCORRETA":               "CE",
+    "FLOW THROUNG":                   "FLOW THROUNG",
+    "IN-TRANSIT":                     "OP",
+    "ARMAZENAGEM":                    "OP",
+    "ESTOQUE INELEGIVEL":             "OP",
+    "ENDEREÇAMENTO INCORRETO":        "PCP",
     "RECEBIMENTO":                    "REC",
     "ERRO SISTEMICO":                 "T.I",
     "RESOLVIDO":                      "OK",
@@ -260,7 +263,7 @@ def enriquecer_indicador(df, dfs, soma_artigos, rtv_unlocated, devol_status,
     df['Devolucao_Status']     = df['ITEM_ID'].map(devol_status).fillna('Nao')
     df['Estoque_Real']         = df['ITEM_ID'].map(estoque_real).fillna(0).astype(int)
     df['Armazenar_Item']       = df['ITEM_ID'].isin(itens_armazenar).map({True: 'Sim', False: 'Nao'})
-    df['Rearmazenar']          = df['ITEM_ID'].map(rearmazenar_item).fillna(False).map({True: 'Sim', False: 'Nao'})
+    df['Rearmazenar']          = df['ITEM_ID'].map(rearmazenar_item).fillna(False).infer_objects(copy=False).map({True: 'Sim', False: 'Nao'})
     df['Status_Local']         = df['ITEM_ID'].map(status_local_look).fillna('Sem Endereço')
     return df
 
@@ -284,16 +287,8 @@ def classificar_erro_real(df):
         'MARCADO MANUALMENTE', 'RTV', 'UNLOCATEDLOC', 'DEVOL-ESTQ',
         'ITEM SEM LOCAL DE SEPARACAO', 'REARMAZENAR - CLASSE INCORRETA', 'ARMAZENAR', 'EMITIDA',
     ]
-    df['ERRO_REAL'] = np.select(condicoes, valores, default='Ok')
-    # Usar área responsável diretamente da base — coluna 'área responsavel '
-    # Para registros sem área preenchida, derivar pelo ERRO_REAL como fallback
-    df['AREA_RESPONSAVEL'] = (
-        df['área responsavel ']
-        .str.strip()
-        .replace('', float('nan'))
-        .fillna(df['ERRO_REAL'].map(MAP_ERRO_RESPONSAVEL))
-        .fillna('(vazio)')
-    )
+    df['ERRO_REAL']        = np.select(condicoes, valores, default='Ok')
+    df['AREA_RESPONSAVEL'] = df['ERRO_REAL'].map(MAP_ERRO_RESPONSAVEL).fillna('(vazio)')
     return df
 
 
