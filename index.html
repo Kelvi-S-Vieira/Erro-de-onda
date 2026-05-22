@@ -444,6 +444,8 @@ select:focus{border-color:var(--blue)}
 
 <script>
 let RAW = [], ERROS = [];
+const FR_SETORES_EXCLUIDOS = new Set(['A','G','UN','AG','TB','LN','EF']);
+let RAW_FR = []; // RAW sem os setores excluídos do Fill Rate
 const CORES = ['#58a6ff','#f85149','#3fb950','#d29922','#bc8cff','#39d353','#79c0ff','#ffa657'];
 const MAP_ERRO_RESPONSAVEL = {
   'ITEM SEM ESTOQUE DISPONIVEL':     'C.E',
@@ -507,6 +509,7 @@ function loadFile(file) {
       RAW = XLSX.utils.sheet_to_json(ws, { defval: '' });
       if (!RAW.length) { alert('Planilha vazia ou aba ANALISE não encontrada.'); return; }
       ERROS = RAW.filter(r => r['Erro de onda'] && r['Erro de onda'] !== 'Sem erro' && r['Erro de onda'] !== '');
+      RAW_FR = RAW.filter(r => !FR_SETORES_EXCLUIDOS.has(String(r['SETOR'] || '').trim().toUpperCase()));
       document.getElementById('topFile').textContent = file.name;
       document.getElementById('topDate').textContent = new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
       buildFilters();
@@ -832,7 +835,7 @@ Chart.defaults.color = '#8b949e';
 
 function calcFillRate(total, erroUnid) {
   if (!total || total === 0) return '—';
-  const fr = ((total - erroUnid) / total * 100);
+  const fr = Math.floor((total - erroUnid) / total * 10000) / 100;
   return fr.toFixed(2).replace('.', ',') + '%';
 }
 
@@ -873,20 +876,20 @@ function sumCol(rows, col) {
 
 function buildPivot(metrica, agrupCol, containerId) {
   const el = document.getElementById(containerId);
-  if (!RAW.length) { el.innerHTML = '<div class="empty">Sem dados</div>'; return; }
+  if (!RAW_FR.length) { el.innerHTML = '<div class="empty">Sem dados</div>'; return; }
 
-  // colunas de agrupamento
-  const grupVals = [...new Set(RAW.map(r => String(r[agrupCol] || '')).filter(v => v && v !== ''))].sort((a,b) => {
+  // colunas de agrupamento — setores excluídos: A, G, UN, AG, TB, LN, EF
+  const grupVals = [...new Set(RAW_FR.map(r => String(r[agrupCol] || '')).filter(v => v && v !== ''))].sort((a,b) => {
     const na = parseFloat(a), nb = parseFloat(b);
     if (!isNaN(na) && !isNaN(nb)) return na - nb;
     return a.localeCompare(b);
   });
 
-  const totalGeral = sumCol(RAW, metrica);
+  const totalGeral = sumCol(RAW_FR, metrica);
 
   // Agrupa por AREA_RESPONSAVEL → Erro de onda
   const areaMap = {};
-  RAW.forEach(r => {
+  RAW_FR.forEach(r => {
     const area = r['AREA_RESPONSAVEL'] || '';
     const erro = r['Erro de onda'] || 'Sem erro';
     const grp  = String(r[agrupCol] || '');
@@ -900,11 +903,11 @@ function buildPivot(metrica, agrupCol, containerId) {
   // Totais por grupo (coluna)
   const grpTotais = {};
   grupVals.forEach(g => {
-    grpTotais[g] = RAW.reduce((s,r) => s + ((String(r[agrupCol]||'')=== g) ? (parseFloat(r[metrica])||0) : 0), 0);
+    grpTotais[g] = RAW_FR.reduce((s,r) => s + ((String(r[agrupCol]||'')=== g) ? (parseFloat(r[metrica])||0) : 0), 0);
   });
 
   // Erros por grupo
-  const erroRows = RAW.filter(r => r['Erro de onda'] && r['Erro de onda'] !== 'Sem erro' && r['Erro de onda'] !== '');
+  const erroRows = RAW_FR.filter(r => r['Erro de onda'] && r['Erro de onda'] !== 'Sem erro' && r['Erro de onda'] !== '');
   const erroGrpTotais = {};
   grupVals.forEach(g => {
     erroGrpTotais[g] = erroRows.reduce((s,r) => s + ((String(r[agrupCol]||'')=== g) ? (parseFloat(r[metrica])||0) : 0), 0);
@@ -958,19 +961,19 @@ function buildPivot(metrica, agrupCol, containerId) {
 }
 
 function buildPivotDistros(containerId) {
-  // Distros = agrupa por STATUS ALOC, conta distros únicas (DISTRO_NBR)
+  // Distros = agrupa por STATUS ALOC, conta distros únicas — setores excluídos: A, G, UN, AG, TB, LN, EF
   const el = document.getElementById(containerId);
-  if (!RAW.length) { el.innerHTML = '<div class="empty">Sem dados</div>'; return; }
+  if (!RAW_FR.length) { el.innerHTML = '<div class="empty">Sem dados</div>'; return; }
 
-  const aloVals = [...new Set(RAW.map(r => String(r['STATUS ALOC'] || '')).filter(Boolean))].sort((a,b)=>{
+  const aloVals = [...new Set(RAW_FR.map(r => String(r['STATUS ALOC'] || '')).filter(Boolean))].sort((a,b)=>{
     const na=parseFloat(a),nb=parseFloat(b);
     return (!isNaN(na)&&!isNaN(nb)) ? na-nb : a.localeCompare(b);
   });
 
-  const totalDistros = new Set(RAW.map(r => r['DISTRO_NBR'])).size;
+  const totalDistros = new Set(RAW_FR.map(r => r['DISTRO_NBR'])).size;
 
   const areaMap = {};
-  RAW.forEach(r => {
+  RAW_FR.forEach(r => {
     const area = r['AREA_RESPONSAVEL'] || '';
     const erro = r['Erro de onda'] || 'Sem erro';
     const alo  = String(r['STATUS ALOC'] || '');
@@ -981,13 +984,13 @@ function buildPivotDistros(containerId) {
     areaMap[area][erro]._byAlo[alo].add(r['DISTRO_NBR']);
   });
 
-  const erroRows = RAW.filter(r => r['Erro de onda'] && r['Erro de onda'] !== 'Sem erro' && r['Erro de onda'] !== '');
+  const erroRows = RAW_FR.filter(r => r['Erro de onda'] && r['Erro de onda'] !== 'Sem erro' && r['Erro de onda'] !== '');
   const aloCounts = {};
   aloVals.forEach(a => { aloCounts[a] = new Set(erroRows.filter(r=>String(r['STATUS ALOC']||'')=== a).map(r=>r['DISTRO_NBR'])).size; });
   const erroDistros = new Set(erroRows.map(r => r['DISTRO_NBR'])).size;
 
   const aloCTotal = {};
-  aloVals.forEach(a => { aloCTotal[a] = new Set(RAW.filter(r=>String(r['STATUS ALOC']||'')=== a).map(r=>r['DISTRO_NBR'])).size; });
+  aloVals.forEach(a => { aloCTotal[a] = new Set(RAW_FR.filter(r=>String(r['STATUS ALOC']||'')=== a).map(r=>r['DISTRO_NBR'])).size; });
 
   let html = `<table class="pivot-table"><thead><tr>
     <th>Resp.</th><th>Erro de onda</th>
@@ -1043,11 +1046,11 @@ function switchFrTab(metricaKey, modo, btn) {
 }
 
 function renderFillRate() {
-  // KPIs Fill Rate
-  const totalPecas  = sumCol(RAW, 'UNIDADES');
-  const totalVol    = sumCol(RAW, 'VOLUMES');
-  const totalDist   = new Set(RAW.map(r=>r['DISTRO_NBR'])).size;
-  const erroRows    = RAW.filter(r => r['Erro de onda'] && r['Erro de onda'] !== 'Sem erro' && r['Erro de onda'] !== '');
+  // KPIs Fill Rate — setores excluídos: A, G, UN, AG, TB, LN, EF
+  const totalPecas  = sumCol(RAW_FR, 'UNIDADES');
+  const totalVol    = sumCol(RAW_FR, 'VOLUMES');
+  const totalDist   = new Set(RAW_FR.map(r=>r['DISTRO_NBR'])).size;
+  const erroRows    = RAW_FR.filter(r => r['Erro de onda'] && r['Erro de onda'] !== 'Sem erro' && r['Erro de onda'] !== '');
   const erroPecas   = sumCol(erroRows, 'UNIDADES');
   const erroVol     = sumCol(erroRows, 'VOLUMES');
   const erroDist    = new Set(erroRows.map(r=>r['DISTRO_NBR'])).size;
