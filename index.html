@@ -228,6 +228,7 @@ select:focus{border-color:var(--blue)}
 .resp-TI{background:var(--purple-bg);color:var(--purple)}
 .resp-REC{background:#1e0e3e;color:#a371f7}
 .resp-FLOW{background:#0d2e1a;color:var(--green)}
+.resp-CEOP{background:var(--amber-bg);color:var(--amber)}
 .resp-OK{background:var(--green-bg);color:var(--green)}
 .resp-vazio{background:var(--surface3);color:var(--text3)}
 .fr-tabs{display:flex;gap:4px;margin-bottom:14px}
@@ -448,40 +449,41 @@ const FR_SETORES_EXCLUIDOS = new Set(['A','G','UN','AG','TB','LN','EF']);
 let RAW_FR = []; // RAW sem os setores excluídos do Fill Rate
 const CORES = ['#58a6ff','#f85149','#3fb950','#d29922','#bc8cff','#39d353','#79c0ff','#ffa657'];
 const MAP_ERRO_RESPONSAVEL = {
-  'ITEM SEM ESTOQUE DISPONIVEL':     'C.E',
-  ' ITEM SEM ESTOQUE DISPONIVEL':    'C.E',
-  'MARCADO MANUALMENTE':             'C.E',
-  'ENDEREÇO BLOQUEADO':              'C.E',
-  'ENDERECO BLOQUEADO':              'C.E',
-  'CASEPACK':                        'C.E',
-  'ITEM SEM ESTOQUE PARCIAL':        'C.E',
-  'ITEM SEM ESTOQUE PARCIAL ':       'C.E',
-  'ENDERECO FORA DE SERVICO':        'C.E',
-  'FORA DE SERVIÇO':                 'C.E',
-  'Fora de Serviço':                 'C.E',
-  'IN-TRANSIT - CE':                 'C.E',
-  'CLASSE INCORRETA':                'C.E',
-  'FLOW THROUNG':                    'FLOW THROUNG',
-  'FLOW THROUNG ':                   'FLOW THROUNG',
-  'RTV':                             'O.P',
-  'IN-TRANSIT':                      'O.P',
-  'UNLOCATEDLOC':                    'O.P',
-  'ARMAZENAGEM':                     'O.P',
-  'ARMAZENAGEM ':                    'O.P',
-  'ARMAZENAR':                       'O.P',
-  'DEVOL-ESTQ':                      'O.P',
-  'ESTOQUE INELEGIVEL':              'O.P',
-  'REARMAZENAR - CLASSE INCORRETA':  'O.P',
+  // Mapeamento alinhado com a coluna 'área responsavel ' da base IND. PROG.
+  'FORA DE SERVIÇO':                 'CE',
+  'Fora de Serviço':                 'CE',
+  'ENDERECO FORA DE SERVICO':        'CE',
+  'MARCADO MANUALMENTE/IN-TRANSIT':  'CE . OP',
+  'MARCADO MANUALMENTE':             'CE . OP',
+  'IN-TRANSIT - CE':                 'CE . OP',
+  'RTV':                             'OP',
+  'IN-TRANSIT':                      'OP',
+  'ARMAZENAR':                       'OP',
+  'ARMAZENAGEM':                     'OP',
+  'DEVOL-ESTQ':                      'OP',
+  'UNLOCATEDLOC':                    'OP',
+  'AVARIA':                          'OP',
+  'VERIFICAR':                       'OP',
+  'REARMAZENAR - CLASSE INCORRETA':  'OP',
+  'ESTOQUE INELEGIVEL':              'OP',
+  'SEM ESTOQUE':                     '(vazio)',
+  'ITEM SEM ESTOQUE DISPONIVEL':     '(vazio)',
+  ' ITEM SEM ESTOQUE DISPONIVEL':    '(vazio)',
+  'ITEM SEM ESTOQUE PARCIAL':        '(vazio)',
+  'CASEPACK':                        'CE',
+  'CLASSE INCORRETA':                'CE',
+  'ENDERECO BLOQUEADO':              'CE',
+  'ENDEREÇO BLOQUEADO':              'CE',
   'ENDEREÇAMENTO INCORRETO':         'PCP',
   'ITEM SEM LOCAL DE SEPARACAO':     'PCP',
   'ITEM SEM LOCAL DE SEPARAÇÃO':     'PCP',
   'RECEBIMENTO':                     'REC',
   'ERRO SISTEMICO':                  'T.I',
+  'FLOW THROUNG':                    'FLOW THROUNG',
   'RESOLVIDO':                       'OK',
   'ENDEREÇADO':                      'OK',
-  'ENDEREÇADO ':                     'OK',
   'Ok':                              'OK',
-  'EMITIDA':                         'NAO CLASSIFICADO',
+  'EMITIDA':                         '(vazio)',
 };
 
 function getAreaResp(erroReal) {
@@ -489,7 +491,7 @@ function getAreaResp(erroReal) {
   return MAP_ERRO_RESPONSAVEL[key] || MAP_ERRO_RESPONSAVEL[erroReal] || 'NAO CLASSIFICADO';
 }
 
-const AREA_CORES = {'C.E':'#f85149','O.P':'#58a6ff','PCP':'#d29922','T.I':'#bc8cff','FLOW THROUNG':'#39d353','REC':'#a371f7','OK':'#3fb950','NAO CLASSIFICADO':'#656d76'};
+const AREA_CORES = {'CE':'#f85149','OP':'#58a6ff','CE . OP':'#d29922','(vazio)':'#656d76','C.E':'#f85149','O.P':'#58a6ff','PCP':'#d29922','T.I':'#bc8cff','FLOW THROUNG':'#39d353','REC':'#a371f7','OK':'#3fb950','NAO CLASSIFICADO':'#656d76'};
 let charts = {};
 
 // ── FILE HANDLING ──
@@ -554,6 +556,9 @@ function fmtN(n) { return Number(n).toLocaleString('pt-BR'); }
 function pillHtml(val) {
   const MAP = {
     'Resolvido':'pill-green','Não resolvido':'pill-red','Sem pendência':'pill-gray',
+    // Áreas da base
+    'CE':'pill-red','OP':'pill-blue','CE . OP':'pill-amber','(vazio)':'pill-gray',
+    // Áreas legadas (fallback)
     'C.E':'pill-red','O.P':'pill-blue','PCP':'pill-amber','T.I':'pill-purple',
     'REC':'pill-purple','FLOW THROUNG':'pill-purple',
     'NAO CLASSIFICADO':'pill-gray','OK':'pill-green',
@@ -857,6 +862,12 @@ function getResp(area) {
 
 function respBadge(area) {
   const MAP_BADGE = {
+    // Áreas da base (valores reais)
+    'CE':           ['resp-CE',     'CE'],
+    'OP':           ['resp-OP',     'OP'],
+    'CE . OP':      ['resp-CEOP',   'CE . OP'],
+    '(vazio)':      ['resp-vazio',  '(vazio)'],
+    // Legados
     'C.E':          ['resp-CE',     'C.E'],
     'O.P':          ['resp-OP',     'O.P'],
     'PCP':          ['resp-PCP',    'PCP'],

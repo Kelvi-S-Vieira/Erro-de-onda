@@ -118,6 +118,8 @@ MAP_CLASSE_SETOR = {
     "CLSETEB": "G",  "CLSETYY": "YY",
 }
 
+# Área responsável vem diretamente da coluna 'área responsavel ' do IND. PROG.
+# (vazio) = SEM ESTOQUE sem área preenchida na base
 MAP_ERRO_RESPONSAVEL = {
     "ITEM SEM ESTOQUE DISPONIVEL":    "C.E",
     "MARCADO MANUALMENTE":            "C.E",
@@ -282,8 +284,16 @@ def classificar_erro_real(df):
         'MARCADO MANUALMENTE', 'RTV', 'UNLOCATEDLOC', 'DEVOL-ESTQ',
         'ITEM SEM LOCAL DE SEPARACAO', 'REARMAZENAR - CLASSE INCORRETA', 'ARMAZENAR', 'EMITIDA',
     ]
-    df['ERRO_REAL']        = np.select(condicoes, valores, default='Ok')
-    df['AREA_RESPONSAVEL'] = df['ERRO_REAL'].map(MAP_ERRO_RESPONSAVEL).fillna('NAO CLASSIFICADO')
+    df['ERRO_REAL'] = np.select(condicoes, valores, default='Ok')
+    # Usar área responsável diretamente da base — coluna 'área responsavel '
+    # Para registros sem área preenchida, derivar pelo ERRO_REAL como fallback
+    df['AREA_RESPONSAVEL'] = (
+        df['área responsavel ']
+        .str.strip()
+        .replace('', float('nan'))
+        .fillna(df['ERRO_REAL'].map(MAP_ERRO_RESPONSAVEL))
+        .fillna('(vazio)')
+    )
     return df
 
 
